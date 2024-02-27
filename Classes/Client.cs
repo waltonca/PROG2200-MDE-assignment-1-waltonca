@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Classes
@@ -22,22 +23,51 @@ namespace Classes
 
             // After connection is established, send a message to the server.
             NetworkStream stream = client.GetStream();
-            SendMessage(stream, "Hi Server");
-            ReceiveMessages(stream);
+            Thread receiveThread = new Thread(() => ReceiveMessage(stream));
+            receiveThread.Start();
+
+            bool inInputMode = false;
+
+            while (true)
+            {
+                if (inInputMode)
+                {
+                    Console.Write(">> ");
+                    string message = Console.ReadLine();
+                    SendMessage(stream, message);
+                    if (message.ToLower() == "quit")
+                        break;
+                }
+                else
+                {
+                    Thread.Sleep(100); // Small delay to prevent high CPU usage
+                    if (stream.DataAvailable)
+                    {
+                        string receivedMessage = ReceiveMessage(stream);
+                        Console.WriteLine("Server: " + receivedMessage);
+                        if (receivedMessage.ToLower() == "quit")
+                            break;
+                    }
+                }
+
+                if (Console.KeyAvailable)
+                {
+                    ConsoleKeyInfo key = Console.ReadKey(true);
+                    if (key.Key == ConsoleKey.I)
+                    {
+                        inInputMode = !inInputMode;
+                    }
+                }
+            }
+
             stream.Close();
             client.Close();
         }
-        private void ReceiveMessages(NetworkStream stream)
+        private string ReceiveMessage(NetworkStream stream)
         {
             byte[] buffer = new byte[1024];
-            while (true)
-            {
-                int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                string receivedMessage = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-                Console.WriteLine("Server: " + receivedMessage);
-                if (receivedMessage.ToLower() == "quit")
-                    break;
-            }
+            int bytesRead = stream.Read(buffer, 0, buffer.Length);
+            return Encoding.ASCII.GetString(buffer, 0, bytesRead);
         }
 
         private void SendMessage(NetworkStream stream, string message)

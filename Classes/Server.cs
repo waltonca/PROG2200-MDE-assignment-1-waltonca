@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Classes
 {
@@ -23,44 +24,65 @@ namespace Classes
         {
             // Start listening for client requests.
             server.Start();
-            // Buffer for reading data
-            Byte[] bytes = new Byte[256];
-            String data = null;
+            Console.WriteLine("Waiting for any Client connection... ");
 
-            // Enter the listening loop.
+            // Perform a blocking call to accept requests.
+            // You could also use server.AcceptSocket() here.
+            TcpClient client = server.AcceptTcpClient();
+            Console.WriteLine("Connection established with Client!");
+
+            // Get a stream object for reading and writing
+            NetworkStream stream = client.GetStream();
+            Thread receiveThread = new Thread(() => ReceiveMessage(stream));
+            receiveThread.Start();
+
+            bool inInputMode = false;
+
             while (true)
             {
-                Console.WriteLine("Waiting for any Client connection... ");
-
-                // Perform a blocking call to accept requests.
-                // You could also use server.AcceptSocket() here.
-                TcpClient client = server.AcceptTcpClient();
-                Console.WriteLine("Connection established with Client!");
-
-                data = null;
-
-                // Get a stream object for reading and writing
-                NetworkStream stream = client.GetStream();
-
-                int i;
-
-                // Loop to receive all the data sent by the client.
-                while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
+                if (inInputMode)
                 {
-                    // Translate data bytes to a ASCII string.
-                    data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                    Console.WriteLine("Received: {0}", data);
+                    Console.Write(">> ");
+                    string message = Console.ReadLine();
+                    SendMessage(stream, message);
+                    if (message.ToLower() == "quit")
+                        break;
+                }
+                else
+                {
+                    Thread.Sleep(100); // Small delay to prevent high CPU usage
+                    if (stream.DataAvailable)
+                    {
+                        string receivedMessage = ReceiveMessage(stream);
+                        Console.WriteLine("Client: " + receivedMessage);
+                        if (receivedMessage.ToLower() == "quit")
+                            break;
+                    }
+                }
 
-                    // Process the data sent by the client.
-                    data = data.ToUpper();
-
-                    byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
-
-                    // Send back a response.
-                    stream.Write(msg, 0, msg.Length);
-                    Console.WriteLine("Sent: {0}", data);
+                if (Console.KeyAvailable)
+                {
+                    ConsoleKeyInfo key = Console.ReadKey(true);
+                    if (key.Key == ConsoleKey.I)
+                    {
+                        inInputMode = !inInputMode;
+                    }
                 }
             }
+            stream.Close();
+            client.Close();
+            server.Stop();
+        }
+        private string ReceiveMessage(NetworkStream stream)
+        {
+            byte[] buffer = new byte[1024];
+            int bytesRead = stream.Read(buffer, 0, buffer.Length);
+            return Encoding.ASCII.GetString(buffer, 0, bytesRead);
+        }
+        private void SendMessage(NetworkStream stream, string message)
+        {
+            byte[] buffer = Encoding.ASCII.GetBytes(message);
+            stream.Write(buffer, 0, buffer.Length);
         }
         public void Stop()
         {
