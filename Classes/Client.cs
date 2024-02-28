@@ -23,31 +23,37 @@ namespace Classes
 
             // After connection is established, send a message to the server.
             NetworkStream stream = client.GetStream();
-            Thread receiveThread = new Thread(() => ReceiveMessage(stream));
-            receiveThread.Start();
 
             bool inInputMode = false;
 
             while (true)
             {
+                if (stream.DataAvailable)
+                {
+                    string receivedMessage = ReceiveMessage(stream);
+                    Console.WriteLine("Server: " + receivedMessage);
+                    if (receivedMessage.ToLower() == "quit")
+                        break;
+
+                    
+                }
+
                 if (inInputMode)
                 {
-                    Console.Write(">> ");
+                    Console.Write("Insertion Mode>> ");
                     string message = Console.ReadLine();
-                    SendMessage(stream, message);
+                    // If the user types "quit", stop sending messages
                     if (message.ToLower() == "quit")
-                        break;
-                }
-                else
-                {
-                    Thread.Sleep(100); // Small delay to prevent high CPU usage
-                    if (stream.DataAvailable)
                     {
-                        string receivedMessage = ReceiveMessage(stream);
-                        Console.WriteLine("Server: " + receivedMessage);
-                        if (receivedMessage.ToLower() == "quit")
-                            break;
+                        break;
                     }
+                    else
+                    {
+                        SendMessage(stream, message);
+                    }
+                    // Once the message is sent, reset the input mode into listening mode.
+                    inInputMode = false;
+
                 }
 
                 if (Console.KeyAvailable)
