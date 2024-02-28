@@ -34,8 +34,6 @@ namespace Classes
 
             // Get a stream object for reading and writing
             NetworkStream stream = client.GetStream();
-            //Thread receiveThread = new Thread(() => ReceiveMessage(stream));
-            //receiveThread.Start();
 
             isSending = false;
 
@@ -81,6 +79,21 @@ namespace Classes
                     if (key.Key == ConsoleKey.I)
                     {
                         inInputMode = !inInputMode;
+                    }
+                    else if (key.Key == ConsoleKey.Escape)
+                    {
+                        break;
+                    }
+                }
+
+                // If client side is close the connection, the server will stop listening. and close the connection.and show message.
+                if (client.Client.Poll(0, SelectMode.SelectRead))
+                {
+                    byte[] buff = new byte[1];
+                    if (client.Client.Receive(buff, SocketFlags.Peek) == 0)
+                    {
+                        Console.WriteLine("Application has been disconnected!");
+                        break;
                     }
                 }
 

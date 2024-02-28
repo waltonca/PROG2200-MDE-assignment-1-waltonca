@@ -46,7 +46,7 @@ namespace Classes
                     if (message.ToLower() == "quit")
                     {
                         break;
-                    }
+                    }  
                     else
                     {
                         SendMessage(stream, message);
@@ -63,11 +63,20 @@ namespace Classes
                     {
                         inInputMode = !inInputMode;
                     }
+                    else if (key.Key == ConsoleKey.Escape)
+                    {
+                        Console.WriteLine("You typed Escape to exit.");
+                        break;
+                    }
                 }
             }
 
+            // Close the stream and the client
             stream.Close();
             client.Close();
+
+            // Show message to the user that the client is closed.
+            Console.WriteLine("Disconnected.\nGood Bye!");
         }
         private string ReceiveMessage(NetworkStream stream)
         {
